@@ -4,7 +4,7 @@ An ad for automation services, built as a motion piece. One copy-paste done by h
 
 - `showreel.html` is the whole piece: 1920x1080, one self-contained file with the font embedded. Every pixel is computed from time inside `window.seek(t)`. There are no CSS animations, no timers, and no state carried between frames.
 - `out/showreel.mp4` is the final render: H.264 1080p60, BT.709, AAC 320k, 15.0 s, −13.4 LUFS.
-- `out/soundtrack.wav` is the soundtrack on its own: 48 kHz 16-bit stereo, seamless loop.
+- `out/soundtrack.wav` is the soundtrack on its own: 48 kHz 16-bit stereo, loops with no click.
 - `STORYBOARD.md` has the beat-by-beat breakdown.
 
 ## Look
