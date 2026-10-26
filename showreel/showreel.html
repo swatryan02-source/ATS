@@ -372,13 +372,15 @@ function hookLines(ctx, t) {
   ctx.save();
   if (ex > 0) { ctx.beginPath(); ctx.rect(-50, bb[0], W + 100, h2); ctx.clip(); }
   ctx.translate(0, -ex * h2);
+  zoomAbout(ctx, { x: 960, y: 540 }, push(2, t));                 // the camera creeps in on the beat, like every big word
   const ins2 = typeIn(L2, c2, lx(2, s2), YB, BW, s2);
   // the caret rides line 1, returns to line 2 on RECRUITMENT and grows to its size
   const ret = eo(seg(t, T0(2) - 0.02, 0.1), 7), grow = spr(t - T0(2) + 0.02, 15, 0.86);
   const s = lerp(s1, s2, grow), cwid = 0.111 * s, chgt = 1.167 * s;
   const cx = lerp(ins1 + 0.09 * s1, ins2 + 0.09 * s, ret);
   const cy = lerp(Y1 - (CAP * s1) / 2, YB - (CAP * s2) / 2, ret);
-  rrect(ctx, cx - cwid / 2, cy - chgt / 2, cwid, chgt, cwid / 2, C.orange);
+  const idle = t > c2[c2.length - 1] + 0.1 && t >= 1.25 && t < 1.5;   // waiting for the next line: the caret blinks
+  if (!idle) rrect(ctx, cx - cwid / 2, cy - chgt / 2, cwid, chgt, cwid / 2, C.orange);
   ctx.restore();
 }
 
@@ -895,9 +897,10 @@ async function renderSoundtrack(sr = 48000, only = null) {     // only: 'vo' or 
   // ducking, from the voice's own timestamps
   const spans = speechSpans();
   for (const [a, b] of [...spans, ...spans.filter((s) => s[0] < TAIL).map((s) => [s[0] + DUR, s[1] + DUR])]) {   // the tail folds onto the head, so it ducks there too
-    const deep = a > 16.0 && a < 18.4 ? 0.6 : 0.4;         // the drop keeps more of its weight
+    const name = a <= T0(50) && b >= T0(50);                // the name is said in the clear
+    const deep = name ? 0.08 : a > 16.0 && a < 18.4 ? 0.6 : 0.4;   // the drop keeps more of its weight; the bed drops out under the name
     mus.gain.setTargetAtTime(0.92 * deep, Math.max(0, a - 0.04), 0.025); mus.gain.setTargetAtTime(0.92, b, 0.12);
-    drm.gain.setTargetAtTime(0.9 * 0.72, Math.max(0, a - 0.04), 0.025); drm.gain.setTargetAtTime(0.9, b, 0.12);
+    drm.gain.setTargetAtTime(0.9 * (name ? 0.3 : 0.72), Math.max(0, a - 0.04), 0.025); drm.gain.setTargetAtTime(0.9, b, 0.12);   // the kick still lands, just under the name
   }
   // short plate-ish reverb from seeded noise
   const ir = ac.createBuffer(2, Math.floor(sr * 1.6), sr), rnd = rng(7);
@@ -913,21 +916,24 @@ async function renderSoundtrack(sr = 48000, only = null) {     // only: 'vo' or 
   const pan = (p, to = fx) => { const s = ac.createStereoPanner(); s.pan.value = p; s.connect(to); return s; };
   const send = (node, amt) => { const g = ac.createGain(); g.gain.value = amt; node.connect(g); g.connect(verb); };
 
+  const nameAt = (t) => t > T0(50) - 0.1 && t < T1(51);                // under "Ryan Ang" the band drops to a soft kick
   // soft clipper: adds harmonics so the low end still reads on a phone speaker
   const drive = (amount) => {
     const ws = ac.createWaveShaper(), n = 1024, c = new Float32Array(n);
     for (let i = 0; i < n; i++) { const x = (i / (n - 1)) * 2 - 1; c[i] = Math.tanh(amount * x) / Math.tanh(amount); }
     ws.curve = c; ws.oversample = '2x'; return ws;
   };
-  function kick(t, amp = 1, dec = 0.34) {
-    const o = ac.createOscillator(); o.frequency.setValueAtTime(170, t); o.frequency.exponentialRampToValueAtTime(47, t + 0.1);
-    o.connect(gainAt(t, 0.6 * amp, 0.002, dec, drm)); o.start(t); o.stop(t + dec + 0.1);
+  function kick(t, amp = 1, dec = 0.34, soft = false) {     // soft: a low thump with no attack, for the beat under the name
+    const o = ac.createOscillator(); o.frequency.setValueAtTime(soft ? 110 : 170, t); o.frequency.exponentialRampToValueAtTime(soft ? 44 : 47, t + 0.1);
+    o.connect(gainAt(t, 0.6 * amp, soft ? 0.014 : 0.002, dec, drm)); o.start(t); o.stop(t + dec + 0.1);
+    if (soft) return;
     const k = ac.createOscillator(); k.type = 'triangle';                 // the knock a phone can actually play
     k.frequency.setValueAtTime(260, t); k.frequency.exponentialRampToValueAtTime(125, t + 0.045);
     const kd = drive(3); k.connect(kd); kd.connect(gainAt(t, 0.42 * amp, 0.001, 0.08, drm)); k.start(t); k.stop(t + 0.16);
     const n = noise(t, 0.02), bp = filt('bandpass', 3200, 0.8); n.connect(bp); bp.connect(gainAt(t, 0.26 * amp, 0.0005, 0.016, drm));
   }
   function bass(t, f, dur = 0.2, amp = 0.32) {
+    if (nameAt(t)) return;
     const o = ac.createOscillator(); o.type = 'sawtooth'; o.frequency.value = f;
     const o8 = ac.createOscillator(); o8.type = 'square'; o8.frequency.value = f * 2;
     const o2 = ac.createOscillator(); o2.type = 'sine'; o2.frequency.value = f;
@@ -943,8 +949,9 @@ async function renderSoundtrack(sr = 48000, only = null) {     // only: 'vo' or 
     lp.connect(g); g.connect(mus); send(g, 0.5);
     chord.forEach((f, i) => [-9, 9].forEach((det) => { const o = ac.createOscillator(); o.type = 'sawtooth'; o.frequency.value = f; o.detune.value = det + 3 * i; o.connect(lp); o.start(t); o.stop(t + dur + 0.3); }));
   }
-  function hat(t, amp = 0.09, dec = 0.03, p = 0.18) { const n = noise(t, dec + 0.02), hp = filt('highpass', 8200); n.connect(hp); hp.connect(gainAt(t, amp, 0.0007, dec, pan(p, drm))); }
+  function hat(t, amp = 0.09, dec = 0.03, p = 0.18) { if (nameAt(t)) return; const n = noise(t, dec + 0.02), hp = filt('highpass', 8200); n.connect(hp); hp.connect(gainAt(t, amp, 0.0007, dec, pan(p, drm))); }
   function clap(t, amp = 0.2) {
+    if (nameAt(t)) return;
     const n = noise(t, 0.25), bp = filt('bandpass', 1500, 1.1); n.connect(bp);
     const g = ac.createGain(); g.gain.setValueAtTime(0, t);
     [0, 0.011, 0.022].forEach((o) => { g.gain.setValueAtTime(amp, t + o); g.gain.exponentialRampToValueAtTime(amp * 0.25, t + o + 0.009); });
@@ -1016,13 +1023,16 @@ async function renderSoundtrack(sr = 48000, only = null) {     // only: 'vo' or 
   const DROP = T0(46);
   for (let n = 0; n < DUR * 2; n++) {
     const t = n * 0.5, after = t >= DROP - 0.01, drop = Math.abs(t - DROP) < 0.01;
-    kick(t, drop ? 1.2 : after ? 1 : 0.9, drop ? 0.6 : 0.34);
+    kick(t, drop ? 1.2 : after ? 1 : 0.9, drop ? 0.6 : 0.34, nameAt(t));
     bass(t + 0.25, ROOT[barOf(t + 0.25)], 0.2, after ? 0.34 : 0.24);
     if (t >= 2.5) hat(t + 0.25, after ? 0.085 : 0.06, 0.035);
     if (after || (t >= 13.25 && t < DROP - 0.5)) { hat(t + 0.125, 0.035, 0.02, -0.25); hat(t + 0.375, 0.035, 0.02, 0.25); }
     if (Number.isInteger(t) && (after || (t >= 8.5 && t < 13.0))) clap(t, after ? 0.26 : 0.16);   // beats 2 and 4
   }
-  for (let b = 0; b < 11; b++) pad(BT(b), CH[b], 2.0, b >= 6 ? 0.06 : 0.05, b >= 8 ? 1800 : b >= 6 ? 1400 : 900);
+  for (let b = 0; b < 11; b++) {
+    const t0 = BT(b), d = t0 < T0(50) && t0 + 2 > T0(50) ? T0(50) - 0.12 - t0 : 2.0;   // the bar under the name lets go before it
+    pad(t0, CH[b], d, b >= 6 ? 0.06 : 0.05, b >= 8 ? 1800 : b >= 6 ? 1400 : 900);
+  }
   // hits at the scene changes
   hit(0.0, CH[10], 0.36);                                               // the dive
   [[T0(2), 0], [T0(9), 1], [T0(17), 2], [T0(23), 3], [T0(26), 4], [T0(29), 4], [T0(36), 6]].forEach(([t, b]) => hit(t, CH[b], 0.42));
@@ -1033,7 +1043,7 @@ async function renderSoundtrack(sr = 48000, only = null) {     // only: 'vo' or 
   for (let n = Math.ceil(T0(35) / 0.125); n < DUR / 0.125; n++) {
     const t = n * 0.125, bar = barOf(t), tones = [...CH[bar], CH[bar][0] * 2];
     const cut = t >= DROP ? 5200 : lerp(1000, 4200, clamp((t - T0(35)) / (DROP - T0(35))));
-    pluck(t, tones[ARP[n % 8]] * 2, cut, t >= DROP ? 0.036 : 0.026, n % 2 ? 0.35 : -0.35);
+    if (!nameAt(t)) pluck(t, tones[ARP[n % 8]] * 2, cut, t >= DROP ? 0.036 : 0.026, n % 2 ? 0.35 : -0.35);
   }
   // the melody arrives with the offer: the problem has no tune, the fix brings it
   const N_ = { A4: 440, B4: 493.88, C5: 523.25, D5: 587.33, E5: 659.25, F5: 698.46, G5: 783.99, A5: 880 };
@@ -1042,7 +1052,8 @@ async function renderSoundtrack(sr = 48000, only = null) {     // only: 'vo' or 
     [9, [[2, 'C5', 1], [3, 'C5', 1], [6, 'F5', 2], [10, 'E5', 1], [11, 'C5', 1], [14, 'A4', 2]]],
     [10, [[2, 'D5', 1], [3, 'D5', 1], [6, 'G5', 2], [10, 'B4', 1], [11, 'D5', 1], [14, 'E5', 2]]],
   ];
-  PHRASE.forEach(([bar, notes]) => notes.forEach(([pos, note, len]) => { const t = BT(bar) + pos * 0.125; if (t < DUR - 0.1) lead(t, N_[note], len * 0.125 * 0.9, bar === 8 ? 0.13 : 0.1, bar === 8 ? 4200 : 3000); }));
+  const clear = (t) => t > T0(50) - 0.15 && t < T1(51);                 // no tune over "Ryan Ang"
+  PHRASE.forEach(([bar, notes]) => notes.forEach(([pos, note, len]) => { const t = BT(bar) + pos * 0.125; if (t < DUR - 0.1 && !clear(t)) lead(t, N_[note], len * 0.125 * 0.9, bar === 8 ? 0.13 : 0.1, bar === 8 ? 4200 : 3000); }));
   // riser into the drop, cut dead on it
   {
     const t0 = 14.5, t1 = DROP;
@@ -1077,7 +1088,6 @@ async function renderSoundtrack(sr = 48000, only = null) {     // only: 'vo' or 
   [14.5, 15.0, 15.5].forEach((t, i) => zip(t + 0.05, 0.3, 0.06, 900 + 300 * i, 6000, i % 2 ? 0.4 : -0.4));
   zip(T0(48) - 0.02, 0.3, 0.08, 600, 6000);                                 // lime contracts into the button
   blip(T0(50), 1046.5, 0.06, 0.12);                                         // the button widens
-  click(20.0, 0.12, 1700); thunk(20.0, 0.07);                              // the button is clicked
   zip(TD - 0.02, 0.28, 0.08, 600, 7000);
   pop(TD + 0.34);                                                           // the DM box is empty again: sent
   click(21.0, 0.05, 2600); click(21.5, 0.05, 2600);                         // the caret blinks
