@@ -1,5 +1,5 @@
 // Renders chosen moments as PNG stills, plus an optional contact sheet.
-// Usage: node render/preview.cjs <outDir> [--beats] [--sheet] [t1 t2 ...]
+// Usage: node render/preview.cjs <outDir> [--beats] [--sheet] [--voice am_michael] [t1 t2 ...]
 //   --beats  one frame per beat, taken 0.2 s after each beat lands (motion settled)
 const { chromium } = require('playwright');
 const fs = require('fs');
@@ -11,16 +11,17 @@ const { execFileSync } = require('child_process');
   const outDir = args.shift();
   const beats = args.includes('--beats');
   const sheet = args.includes('--sheet');
+  const vi = args.indexOf('--voice'), voice = vi >= 0 ? args.splice(vi, 2)[1] : '';
   let times = args.filter((a) => !a.startsWith('--')).map(Number);
-  if (beats) for (let b = 0; b < 30; b++) times.push(+(b * 0.5 + 0.2).toFixed(3));
   fs.mkdirSync(outDir, { recursive: true });
 
   const browser = await chromium.launch();
   const page = await browser.newPage({ viewport: { width: 1920, height: 1080 } });
   page.on('console', (m) => console.log('[page]', m.text()));
   page.on('pageerror', (e) => console.log('[pageerror]', e.message));
-  await page.goto('file://' + path.resolve(__dirname, '..', 'showreel.html'));
+  await page.goto('file://' + path.resolve(__dirname, '..', 'showreel.html') + (voice ? '?voice=' + voice : ''));
   await page.waitForFunction(() => window.__ready === true, null, { timeout: 60000 });
+  if (beats) { const dur = await page.evaluate(() => window.DUR); for (let b = 0; b < dur * 2; b++) times.push(+(b * 0.5 + 0.2).toFixed(3)); }
 
   const files = [];
   for (const t of times) {

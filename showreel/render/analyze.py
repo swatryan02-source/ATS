@@ -48,8 +48,8 @@ def main():
         d = ImageDraw.Draw(img)
         x = lambda i: 20 + i * 1760 / n
         top = max(diff.max(), 1)
-        for b in range(31):
-            d.line([(x(b * beat), 0), (x(b * beat), 300)], fill=(80, 80, 200) if b % 4 else (255, 90, 31), width=1)
+        for b in range(int(n / beat) + 1):        # bar lines (orange) fall half a beat after the seam
+            d.line([(x(b * beat), 0), (x(b * beat), 300)], fill=(255, 90, 31) if b % 4 == 1 else (80, 80, 200), width=1)
         pts = [(x(i), 290 - 270 * min(1, v / top) ** 0.5) for i, v in enumerate(diff)]
         d.line(pts, fill=(212, 255, 58), width=2)
         img.save(sys.argv[2])
