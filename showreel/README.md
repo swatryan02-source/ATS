@@ -40,6 +40,6 @@ How the render works:
 
 ## Changing the call to action
 
-The end card reads "Let's automate your hiring." over a DM box with the placeholder "DM me". Both strings live in the `EC` constant near the top of the script, so you can swap in an email address or handle and run the render again.
+The end card reads "Let's automate your hiring." over a lime button that drains into a DM box, both reading "DM me – Ryan Ang". Both strings live in the `EC` constant near the top of the script, and the button sizes itself to the text, so you can swap in an email address or handle and run the render again. `ECS` scales the whole end card (1.4 keeps the CTA readable on a phone); the camera dive at the loop seam compensates, so the hook is unaffected.
 
 If you swap in a longer string, check frame 0 (`?t=0`) and the end card (`?t=14.9`), since both are laid out around these words.

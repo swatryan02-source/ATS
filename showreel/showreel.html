@@ -194,16 +194,17 @@ const lerpPoly = (a, b, u) => a.map((p, i) => [lerp(p[0], b[i][0], u), lerp(p[1]
 
 /* ================================================================ LAYOUT CONSTANTS */
 // End card. It is also frame 0: the loop seam sits inside the CTA.
+const ECS = 1.4;                        // end-card scale: the CTA has to read on a phone
 const EC = {
-  head: 'Let’s automate your hiring.', hw: 700, hs: 96, hy: 478, track: -1.5,
-  field: { x: 660, y: 586, w: 600, h: 108, r: 54 },
-  pill: { x: 805, y: 586, w: 310, h: 108, r: 54 },
-  caret: { x: 706, y: 619, w: 4, h: 42, r: 2 },
-  ph: { text: 'DM me', x: 724, w: 500, s: 36 },
-  cta: { w: 640, s: 40 },
+  head: 'Let’s automate your hiring.', hw: 700, hs: 96, hy: 468, track: -1.5,
+  field: { x: 960 - 300 * ECS, y: 640 - 54 * ECS, w: 600 * ECS, h: 108 * ECS, r: 54 * ECS },
+  pill: { x: 0, y: 640 - 54 * ECS, w: 0, h: 108 * ECS, r: 54 * ECS },   // width fitted to the CTA text in precompute()
+  caret: { x: 960 - 254 * ECS, y: 640 - 21 * ECS, w: 4 * ECS, h: 42 * ECS, r: 2 * ECS },
+  ph: { text: 'DM me – Ryan Ang', x: 960 - 236 * ECS, w: 500, s: 36 * ECS },
+  cta: { w: 640, s: 40 * ECS },
 };
 // Bar 1: hook, typed inside the DM field after the camera dives into it.
-const DIVE_Z = 11, PIV = { x: 753, y: 650 };
+const DIVE_Z = 11 / ECS, PIV = { x: 0, y: 0 };   // the dive lands on the same 44 x 462 px caret whatever ECS is
 const HK = { x0: 250, fs: 396, w: 760, track: -4 };
 const HOOK = [                          // a recruiter's loop, once per applicant
   { word: 'COPY', t0: 0.10, mode: 'type', dt: 0.045, sel: 0.36 },
@@ -247,6 +248,13 @@ function precompute() {
   HK.cap = CAP * HK.fs; HK.base = 540 + HK.cap / 2;
   HK.cw = EC.caret.w * DIVE_Z; HK.ch = EC.caret.h * DIVE_Z;      // the end-card caret, seen from inside the field
   HK.gap = 258 - HK.x0;
+  // zoom pivot that carries the end-card caret to its hook position (258, 540)
+  const ax = EC.caret.x + EC.caret.w / 2, ay = EC.caret.y + EC.caret.h / 2;
+  PIV.x = (HK.x0 + HK.gap - DIVE_Z * ax) / (1 - DIVE_Z); PIV.y = (540 - DIVE_Z * ay) / (1 - DIVE_Z);
+
+  // end card: the CTA button hugs its text, centred
+  const cw = inkWidth(layout(EC.ph.text, EC.cta.w, EC.cta.s), EC.cta.w, EC.cta.s);
+  EC.pill.w = Math.max(310 * ECS, Math.round(cw + 2 * 56 * ECS)); EC.pill.x = 960 - EC.pill.w / 2;
 
   // bar 2: centre the left-aligned block on its widest final line
   let wmax = 0;
@@ -401,7 +409,7 @@ function drawCTA(ctx, t, color) {
   const s = lerp(EC.cta.s, EC.ph.s, u), w = lerp(EC.cta.w, EC.ph.w, u);
   const L = layout(EC.ph.text, w, s);
   const x = lerp(960 - L.width / 2, EC.ph.x, u);
-  const rise = 74 * (1 - eo(seg(t, 14.16, 0.26), 7));
+  const rise = 74 * ECS * (1 - eo(seg(t, 14.16, 0.26), 7));
   const y = EC.field.y + EC.field.h / 2 + (CAP * s) / 2 + rise;
   for (let i = 0; i < L.chars.length; i++) if (L.chars[i] !== ' ') glyph(ctx, L.chars[i], x + L.xs[i], y, w, s, color);
 }
@@ -425,7 +433,7 @@ function sceneHook(ctx, t) {
 }
 function hookCaret(ctx, x, cy, scale, color) {
   const w = HK.cw * scale, h = HK.ch * scale;
-  rrect(ctx, x - w / 2, cy - h / 2, w, h, 2 * DIVE_Z * scale, color);
+  rrect(ctx, x - w / 2, cy - h / 2, w, h, EC.caret.r * DIVE_Z * scale, color);
 }
 function hookWords(ctx, t) {
   let ei = -1;

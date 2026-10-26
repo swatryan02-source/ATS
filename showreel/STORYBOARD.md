@@ -39,5 +39,5 @@ The sound tells the same story. Bar 1 (by hand) is drums and keystrokes only. Th
 | 25 | 12.0 | Drop. 4,096 cells close ranks into a lime field, and the ones under the letters fall out: **IT RUNS ITSELF.** in a mosaic | riser cut, biggest impact, sub drop, melody at full brightness |
 | 26–28 | 12.5–13.5 | The camera punches in on every beat while each word sharpens into crisp Geist in a left-to-right sweep | kick, shimmer |
 | **½ bar: end title** | | | |
-| 29 | 14.0 | The lime field contracts into a pill. Its edge wipes the old line away and reveals **Let's automate your hiring.** over **[DM me]** | impact |
-| 30 | 14.5 | The pill drains into an outlined DM box with an orange caret. That's frame 0, and the loop restarts | kick, send swoosh, sent pop |
+| 29 | 14.0 | The lime field contracts into a pill. Its edge wipes the old line away and reveals **Let's automate your hiring.** over a lime **[DM me – Ryan Ang]** button | impact |
+| 30 | 14.5 | The button drains into an outlined DM box (placeholder: DM me – Ryan Ang) with an orange caret. That's frame 0, and the loop restarts | kick, send swoosh, sent pop |
